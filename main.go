@@ -10,6 +10,7 @@ import (
 	"net/mail"
 	"mime"
 	"mime/multipart"
+	"encoding/base64"
 
 	"github.com/mxk/go-imap/imap"
 "encoding/hex"
@@ -18,6 +19,18 @@ import (
 
 var TODO_remove_this = spew.Config
 var TODO_remove_this_too = hex.Dump
+
+func toword(what string) string {
+	return base64.StdEncoding.EncodeToString([]byte(what))
+}
+
+func fromword(word string) string {
+	b, err := base64.StdEncoding.DecodeString(word)
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
+}
 
 func start(cmd *imap.Command, err error) *imap.Command {
 	if err != nil {
@@ -44,7 +57,7 @@ func handle(cmd *imap.Command, err error) *imap.Command {
 	return finish(cmd)
 }
 
-func extract(raw *imap.Response) (msg *mail.Message, body []byte) {
+func extract(raw *imap.Response) (uid uint32, msg *mail.Message, body []byte) {
 	info := raw.MessageInfo()
 	headerbytes := imap.AsBytes(info.Attrs["RFC822.HEADER"])
 	if len(headerbytes) == 0 {
@@ -55,11 +68,17 @@ func extract(raw *imap.Response) (msg *mail.Message, body []byte) {
 		panic(err)
 	}
 	body = imap.AsBytes(info.Attrs["BODY[]"])
-	return msg, body
+	return info.UID, msg, body
 }
 
 func canHaveAttachment(msg *mail.Message) (can bool, boundary string) {
-	mimetype, parts, err := mime.ParseMediaType(msg.Header.Get("Content-Type"))
+	contentType := msg.Header.Get("Content-Type")
+	if contentType == "" {
+		// assume emails without a Content-Type are text/plain
+		// yeah, I have one from 2009 and I *think* it's text/plain...
+		return false, ""
+	}
+	mimetype, parts, err := mime.ParseMediaType(contentType)
 	if err != nil {
 		panic(err)
 	}
@@ -68,16 +87,15 @@ func canHaveAttachment(msg *mail.Message) (can bool, boundary string) {
 	if can {
 		boundary = parts["boundary"]
 	}
-	return
+	return can, boundary
 }
 
-func process(raw *imap.Response) {
-	msg, body := extract(raw)
+func process(path string, raw *imap.Response) {
+	uid, msg, body := extract(raw)
 	can, boundary := canHaveAttachment(msg)
 	if !can {
 		return
 	}
-	fmt.Println(msg.Header.Get("Subject"))
 	r := multipart.NewReader(bytes.NewReader(body), boundary)
 	for {
 		part, err := r.NextPart()
@@ -85,11 +103,24 @@ func process(raw *imap.Response) {
 			break
 		}
 		if err != nil {
+// TODO figure the ones that trip this out
+fmt.Fprintf(os.Stderr, "skipping %q %q %q : %q\n", msg.Header.Get("From"), msg.Header.Get("Subject"), boundary, err);return
 			panic(err)
 		}
-		fmt.Printf("- %s\n  %s\n",
-			part.FileName(),
-			part.FormName())
+		filename := part.FileName()
+		if filename != "" {
+			fmt.Printf("%s %d %s | folder:%q filename:%q from:%s subject:%q contentType:%q\n",
+				// actual fields
+				toword(path),
+				uid,
+				toword(filename),
+				// comments
+				path,
+				filename,
+				msg.Header.Get("From"),
+				msg.Header.Get("Subject"),
+				part.Header.Get("Content-Type"))
+		}
 	}
 }
 
@@ -111,14 +142,14 @@ func search(c *imap.Client, path string, indent int) {
 	if err != nil {
 		panic(err)
 	}
-	list := start(c.Fetch(seq, "RFC822.HEADER BODY[]"))
+	list := start(c.Fetch(seq, "UID RFC822.HEADER BODY[]"))
 	for list.InProgress() {
 		err = c.Recv(-1)
 		if err != nil {
 			panic(err)
 		}
 		for _, msg := range list.Data {
-			process(msg)
+			process(path, msg)
 		}
 		list.Data = nil
 		// TODO why is this needed?
@@ -131,7 +162,6 @@ func search(c *imap.Client, path string, indent int) {
 func runList(c *imap.Client, list *imap.Command, indent int) {
 	for _, r := range list.Data {
 		name := r.MailboxInfo().Name
-		fmt.Printf("[DIR] %s%s\n", strings.Repeat(" ", indent), name)
 		search(c, name, indent + 1)
 		list2 := handle(imap.Wait(c.List(name, "%")))
 		runList(c, list2, indent + 1)
