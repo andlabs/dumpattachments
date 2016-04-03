@@ -137,7 +137,8 @@ func fetch(c *imap.Client, path string, first uint32, last uint32) {
 	if err != nil {
 		panic(err)
 	}
-	list := start(c.Fetch(seq, "UID RFC822.HEADER BODY[]"))
+	// note the use of BODY.PEEK[] — we don't want things to be marked as read!
+	list := start(c.Fetch(seq, "UID RFC822.HEADER BODY.PEEK[]"))
 	for list.InProgress() {
 		err = c.Recv(-1)
 		if err != nil {
