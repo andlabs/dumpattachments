@@ -17,6 +17,11 @@ import (
 "github.com/davecgh/go-spew/spew"
 )
 
+// TODOs:
+// - go from panic to errors
+// - componentize all this
+// - options: -f to limit to a folder, -s for SSL
+
 var TODO_remove_this = spew.Config
 var TODO_remove_this_too = hex.Dump
 
@@ -92,6 +97,7 @@ func canHaveAttachment(msg *mail.Message) (can bool, boundary string) {
 
 func process(path string, raw *imap.Response) {
 	uid, msg, body := extract(raw)
+fmt.Fprintf(os.Stderr, "%q %q\n", msg.Header.Get("From"), msg.Header.Get("Subject"))
 	can, boundary := canHaveAttachment(msg)
 	if !can {
 		return
@@ -150,7 +156,9 @@ func fetch(c *imap.Client, path string, first uint32, last uint32) {
 func search(c *imap.Client, path string, indent int) {
 	handle(c.Select(path, true))
 	defer func() {		// closure needed as otherwise c.Close() will be run immediately
-		handle(c.Close(false))
+//TODO		handle(c.Close(false))
+		cmd, _ := c.Close(false)
+		cmd.Result(imap.OK)
 	}()
 
 	// TODO why is this needed?
