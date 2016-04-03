@@ -124,21 +124,10 @@ fmt.Fprintf(os.Stderr, "skipping %q %q %q : %q\n", msg.Header.Get("From"), msg.H
 	}
 }
 
-func search(c *imap.Client, path string, indent int) {
-	handle(c.Select(path, true))
-	defer func() {		// closure needed as otherwise c.Close() will be run immediately
-		handle(c.Close(false))
-	}()
+const fetchSize = 100
 
-	// TODO why is this needed?
-	c.Data = nil
-
-	// If there are no messages, the fetch will fail
-	if c.Mailbox.Messages == 0 {
-		return
-	}
-
-	seq, err := imap.NewSeqSet("1:*")
+func fetch(c *imap.Client, path string, first uint32, last uint32) {
+	seq, err := imap.NewSeqSet(fmt.Sprintf("%d:%d", first, last))
 	if err != nil {
 		panic(err)
 	}
@@ -158,6 +147,31 @@ func search(c *imap.Client, path string, indent int) {
 	finish(list)
 }
 
+func search(c *imap.Client, path string, indent int) {
+	handle(c.Select(path, true))
+	defer func() {		// closure needed as otherwise c.Close() will be run immediately
+		handle(c.Close(false))
+	}()
+
+	// TODO why is this needed?
+	c.Data = nil
+
+	n := c.Mailbox.Messages
+
+	// If there are no messages, the fetch will fail
+	if n == 0 {
+		return
+	}
+
+	for first := uint32(1); first <= n; first += fetchSize {
+		last := first + fetchSize
+		if last > n {
+			last = n
+		}
+		fetch(c, path, first, last)
+	}
+}
+
 // TODO does this actually handle multiple directory structures correctly? it seems to given how name works
 func runList(c *imap.Client, list *imap.Command, indent int) {
 	for _, r := range list.Data {
@@ -174,7 +188,7 @@ func tree(c *imap.Client) {
 }
 
 func main() {
-	imap.DefaultLogMask = imap.LogAll
+//	imap.DefaultLogMask = imap.LogAll
 
 	server := os.Args[1]
 	user := os.Args[2]
