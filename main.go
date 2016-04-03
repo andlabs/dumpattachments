@@ -174,7 +174,7 @@ func tree(c *imap.Client) {
 }
 
 func main() {
-//	imap.DefaultLogMask = imap.LogAll
+	imap.DefaultLogMask = imap.LogAll
 
 	server := os.Args[1]
 	user := os.Args[2]
@@ -192,7 +192,11 @@ func main() {
 	}
 	handle(c.Noop())
 	handle(c.Login(user, pass))
-	defer c.Logout(-1)
 
 	tree(c)
+
+	// DO NOT DEFER THIS
+	// doing so will cause any panics to cascade
+	// we can defer this if we move away from panic() though
+	c.Logout(-1)
 }
