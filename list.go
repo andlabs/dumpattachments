@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+// TODO
+// - clean up some of these function names
+// 	- perhaps by making the recursive list functions unexported
+
 var ErrInvalidListLine = fmt.Errorf("invalid list line passed to list line parser")
 
 func StringToList(what string) string {
@@ -46,56 +50,45 @@ func TupleFilenameFromList(line string) (tuple *MsgTuple, filename string, err e
 	return tuple, filename, nil
 }
 
-func ListLinesForMessage(tuple *MsgTuple, m *Message) string {
+func ListLinesForMessage(tuple *MsgTuple, m *Message) {
 	if !m.CanHaveAttachments() {
-		return ""
+		return
 	}
-	list := ""
 	for i, part := range m.Parts {
 		if part.Filename != "" {
-			list += MessageToList(tuple, m, i)
+			fmt.Print(MessageToList(tuple, m, i))
 		}
 	}
-	return list
 }
 
-func ListLinesForFolder(c *Conn, folder string) (string, error) {
+func ListLinesForFolder(c *Conn, folder string) error {
 	m, err := c.ListMessages(folder)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer m.Close()
 
-	list := ""
 	for m.Next() {
 		tuple, msg, err := m.Message()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "skipping invalid message %s: %v\n", tuple, err)
 			continue
 		}
-		list += ListLinesForMessage(tuple, msg)
+		ListLinesForMessage(tuple, msg)
 	}
-	if m.Err() != nil {
-		return "", m.Err()
-	}
-
-	return list, nil
+	return m.Err()
 }
 
-func ListLines(c *Conn) (list string, err error) {
+func ListLines(c *Conn) error {
 	folders, err := c.AllFolders()
 	if err != nil {
-		return "", err
+		return err
 	}
-
-	list = ""
 	for _, f := range folders {
-		s, err := ListLinesForFolder(c, f)
+		err := ListLinesForFolder(c, f)
 		if err != nil {
-			return "", err
+			return err
 		}
-		list += s
 	}
-
-	return list, nil
+	return nil
 }

@@ -2,13 +2,11 @@
 package main
 
 import (
-	"fmt"
 	"os"
 )
 
 // TODOs:
 // - options: -f to limit to a folder, -s for SSL
-// - allow partial prints
 
 func main() {
 //	imap.DefaultLogMask = imap.LogAll
@@ -23,9 +21,8 @@ func main() {
 	}
 	defer c.Close()
 
-	list, err := ListLines(c)
+	err = ListLines(c)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Print(list)
 }
