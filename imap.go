@@ -96,13 +96,18 @@ func (c *Conn) AllFolders() ([]string, error) {
 
 type MessageIter struct {
 	c		*Conn
-	cmd		*imap.Command
-	started	bool
-	cur		int
+	first		uint64		// uint64 to prevent overflow
+	n		uint64
 	folder	string
 	validity	uint32
 	err		error
+
+	// When cmd is nil, first:first+messagesPerCmd messages are extracted into cmd and first is advanced.
+	cmd		*imap.Command
+	cur		int
 }
+
+const messagesPerCmd = 100
 
 func (c *Conn) ListMessages(folder string) (*MessageIter, error) {
 	err := c.handle(c.c.Select(folder, true))
@@ -122,51 +127,70 @@ func (c *Conn) ListMessages(folder string) (*MessageIter, error) {
 		return nil, nil
 	}
 
-	// TODO see if we can make this without an error
-	set, err := imap.NewSeqSet("1:*")
-	if err != nil {
-		c.handle(c.c.Close(false))
-		return nil, err
-	}
-	cmd, err := c.c.Fetch(set, "UID RFC822.HEADER BODYSTRUCTURE")
-	if err != nil {
-		c.handle(c.c.Close(false))
-		return nil, err
-	}
-
 	return &MessageIter{
 		c:		c,
-		cmd:		cmd,
+		first:		1,
+		n:		uint64(c.c.Mailbox.Messages),
 		folder:	folder,
 		validity:	c.c.Mailbox.UIDValidity,
-		err:		nil,
 	}, nil
 }
 
+func (m *MessageIter) nextNextCmd() bool {
+	if m.first > m.n {		// finished?
+		return false
+	}
+
+	set := &imap.SeqSet{}
+	last := m.first + messagesPerCmd - 1
+	if last > m.n {
+		last = m.n
+	}
+	set.AddRange(uint32(m.first), uint32(last))
+	m.first = last + 1
+	m.cmd, m.err = m.c.c.Fetch(set, "UID RFC822.HEADER BODYSTRUCTURE")
+	// just to be safe
+	if m.err != nil && m.cmd != nil {
+		m.cmd.Result(imap.OK)
+		m.cmd = nil
+	}
+	return m.cmd != nil
+}
+
+// TODO comment this
 func (m *MessageIter) Next() bool {
 	if m.err != nil {
 		return false
 	}
-	if m.started {
-		// first exhaust the last receipt...
+	if m.cmd == nil {
+		if !m.nextNextCmd() {
+			// either we're finished or there's an error
+			return false
+		}
+	}
+	if len(m.cmd.Data) != 0 {
+		// try the next data element
 		m.cur++
 		if m.cur < len(m.cmd.Data) {
 			return true
 		}
-		// ...we're done; get ready for the next receipt
+		// otherwise we're done; get ready for the next receipt
 		m.cmd.Data = nil
 		// TODO why do we need this?
 		m.c.c.Data = nil
 	}
+TODO:
 	if !m.cmd.InProgress() {
+		_, m.err = m.cmd.Result(imap.OK)
+		m.cmd = nil
+		return m.Next()
+	}
+	m.err = m.c.c.Recv(-1)
+	if m.err != nil {
 		return false
 	}
-	err := m.c.c.Recv(-1)
-	if err != nil {
-		m.err = err
-		return false
-	}
-	m.started = true
+//TODO is this the result of a bad connection?
+if len(m.cmd.Data)==0{goto TODO}
 	m.cur = 0
 	return true
 }
@@ -187,9 +211,11 @@ func (m *MessageIter) Err() error {
 }
 
 func (m *MessageIter) Close() error {
-	_, err := m.cmd.Result(imap.OK)
-	if err != nil {
-		return err
+	if m.cmd != nil {
+		_, err := m.cmd.Result(imap.OK)
+		if err != nil {
+			return err
+		}
 	}
 	return m.c.handle(m.c.c.Close(false))
 }
