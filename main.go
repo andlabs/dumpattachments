@@ -70,7 +70,10 @@ func extract(raw *imap.Response) (uid uint32, msg *mail.Message, bodyStructure [
 	}
 	msg, err := mail.ReadMessage(bytes.NewReader(headerbytes))
 	if err != nil {
-fmt.Fprintln(os.Stderr, hex.Dump(headerbytes))
+// TODO debug
+// TODO show tuple here
+fmt.Fprintf(os.Stderr, "skipping invalid message\n")
+return 0, nil, nil
 		panic(err)
 	}
 	bodyStructure = imap.AsList(info.Attrs["BODYSTRUCTURE"])
@@ -94,6 +97,9 @@ func canHaveAttachment(msg *mail.Message) bool {
 
 func process(path string, raw *imap.Response) {
 	uid, msg, bodyStructure := extract(raw)
+	if msg == nil {
+		return
+	}
 fmt.Fprintf(os.Stderr, "%s %q %q\n", path, msg.Header.Get("From"), msg.Header.Get("Subject"))
 	if !canHaveAttachment(msg) {
 		return
