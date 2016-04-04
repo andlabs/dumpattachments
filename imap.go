@@ -8,49 +8,6 @@ import (
 	"github.com/mxk/go-imap/imap"
 )
 
-// TOOD get relevant stackoverflow links back
-
-type MsgTuple struct {
-	Mailbox			string
-	UIDValidity		uint32
-	UID				uint32
-}
-
-func parseUint32(str string) (uint32, error) {
-	n, err := strconv.ParseUint(str, 10, 32)
-	return uint32(n), err
-}
-
-func MsgTupleFromLog(split []string) (m *MsgTuple, err error) {
-	if len(split) < 3 {
-		return nil, fmt.Errorf("MsgTupleFromLog(): invalid log line format")
-	}
-	m := new(MsgTuple)
-	m.Mailbox, err = StringFromLog(split[0])
-	if err != nil {
-		return nil, err
-	}
-	m.UIDValidity, err = parseUint32(split[1])
-	if err != nil {
-		return nil, err
-	}
-	m.UID, err = parseUint32(split[2])
-	if err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (m *MsgTuple) ToLog() string {
-	return fmt.Sprintf("%s %d %d", StringToLog(m.Mailbox),
-		m.UIDValidity, m.UID)
-}
-
-func (m *MsgTuple) String() string {
-	return fmt.Sprintf("%s %d %d", m.Mailbox,
-		m.UIDValidity, m.UID)
-}
-
 type Conn struct {
 	c	*imap.Client
 }
@@ -109,6 +66,7 @@ func (c *Conn) Close() error {
 	return c.handle(c.c.Logout(-1))
 }
 
+// TODO if we're using imap.Wait() we can just do away with the caching and go depth first
 func (c *Conn) gatherFolders(root string) ([]string, error) {
 	// first gather everything at root
 	cmd, err := imap.Wait(c.c.List(root, "%"))

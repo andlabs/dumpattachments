@@ -15,8 +15,53 @@ var ErrNoHeader = fmt.Errorf("no header in message")
 var ErrInvalidBodyStructure = fmt.Errorf("invalid body structure in message")
 var ErrInvalidMessagePart = fmt.Errorf("invalid message part in message")
 
+// TOOD get relevant stackoverflow links back
+
+type MsgTuple struct {
+	Mailbox			string
+	UIDValidity		uint32
+	UID				uint32
+}
+
+func parseUint32(str string) (uint32, error) {
+	n, err := strconv.ParseUint(str, 10, 32)
+	return uint32(n), err
+}
+
+func MsgTupleFromList(split []string) (m *MsgTuple, err error) {
+	if len(split) < 3 {
+		return nil, fmt.Errorf("MsgTupleFromLog(): invalid log line format")
+	}
+	m := new(MsgTuple)
+	m.Mailbox, err = StringFromList(split[0])
+	if err != nil {
+		return nil, err
+	}
+	m.UIDValidity, err = parseUint32(split[1])
+	if err != nil {
+		return nil, err
+	}
+	m.UID, err = parseUint32(split[2])
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (m *MsgTuple) ToList() string {
+	return fmt.Sprintf("%s %d %d", StringToList(m.Mailbox),
+		m.UIDValidity, m.UID)
+}
+
+func (m *MsgTuple) String() string {
+	return fmt.Sprintf("%s %d %d", m.Mailbox,
+		m.UIDValidity, m.UID)
+}
+
 type Message struct {
 	ContentType	string
+	From		string
+	Subject		string
 	Parts			[]*MessagePart
 }
 
@@ -43,6 +88,9 @@ func ParseMessage(info *imap.MessageInfo) (m *Message, err error) {
 	if err != nil {
 		return nil, err
 	}
+
+	m.From = header.Get("From")
+	m.Subject = header.Get("Subject")
 
 	parts := imap.AsList(info.Attrs["BODYSTRUCTURE"])
 	if len(bodyStructure) == 0 {
