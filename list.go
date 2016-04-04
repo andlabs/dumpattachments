@@ -51,8 +51,8 @@ func ListLinesForMessage(tuple *MsgTuple, m *Message) string {
 		return ""
 	}
 	list := ""
-	for i := 0; i < len(m.Parts); i++ {
-		if m.Parts[i].Filename != "" {
+	for i, part := range m.Parts {
+		if part.Filename != "" {
 			list += MessageToList(tuple, m, i)
 		}
 	}
