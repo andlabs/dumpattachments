@@ -8,6 +8,7 @@ import (
 
 // TODOs:
 // - options: -f to limit to a folder, -s for SSL
+// - allow partial prints
 
 func main() {
 //	imap.DefaultLogMask = imap.LogAll
