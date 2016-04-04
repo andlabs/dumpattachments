@@ -21,6 +21,7 @@ import (
 // - go from panic to errors
 // - componentize all this
 // - options: -f to limit to a folder, -s for SSL
+// - error check the imap.AsXxx() functions
 
 var TODO_remove_this = spew.Config
 var TODO_remove_this_too = hex.Dump
@@ -100,7 +101,6 @@ func process(path string, raw *imap.Response) {
 	if msg == nil {
 		return
 	}
-fmt.Fprintf(os.Stderr, "%s %q %q\n", path, msg.Header.Get("From"), msg.Header.Get("Subject"))
 	if !canHaveAttachment(msg) {
 		return
 	}
@@ -110,14 +110,22 @@ fmt.Fprintf(os.Stderr, "%s %q %q\n", path, msg.Header.Get("From"), msg.Header.Ge
 			break
 		}
 		mime := imap.AsList(part)
+		// these will always be at position 1
+		mtype := imap.AsString(mime[0]) + "/" +
+			imap.AsString(mime[1])
+		// and just to look good
+		mtype = strings.ToLower(mtype)
+		// we can't use imap.AsFieldMap() here because the key type here is not Atom
 		// TODO will it always be at position 2?
-		ext := imap.AsFieldMap(mime[2])
-		// TODO wil it always be capitalized?
-		filename := ext["NAME"]
-_=filename
-	}
-_=uid
-/*
+		ext := imap.AsList(mime[2])
+		filename := ""
+		for i := 0; i < len(ext); i += 2 {
+			// TODO wil it always be capitalized?
+			if imap.AsString(ext[i]) == "NAME" {
+				filename = imap.AsString(ext[i + 1])
+				break
+			}
+		}
 		if filename != "" {
 			fmt.Printf("%s %d %s | folder:%q filename:%q from:%s subject:%q contentType:%q\n",
 				// actual fields
@@ -129,8 +137,9 @@ _=uid
 				filename,
 				msg.Header.Get("From"),
 				msg.Header.Get("Subject"),
-				part.Header.Get("Content-Type"))
-*/
+				mtype)
+		}
+	}
 }
 
 const fetchSize = 100
