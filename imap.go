@@ -108,7 +108,7 @@ type MessageIter struct {
 }
 
 func (c *Conn) ListMessages(folder string) (*MessageIter, error) {
-	err := c.handle(c.c.Select(folder, true)
+	err := c.handle(c.c.Select(folder, true))
 	if err != nil {
 		return nil, err
 	}
