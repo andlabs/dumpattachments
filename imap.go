@@ -216,14 +216,15 @@ func (m *MessageIter) Next() bool {
 	return true
 }
 
-func (m *MessageIter) Message() (*Message, error) {
+func (m *MessageIter) Message() (*MsgTuple, *Message, error) {
 	info := m.cmd.Data[m.cur].MessageInfo()
 	tuple := &MsgTuple{
 		Path:			m.path,
 		UIDValidity:	m.validity,
 		UID:			info.UID,
 	}
-	return ProcessMessage(tuple, info)
+	msg, err := ProcessMessage(info)
+	return tuple, msg, err
 }
 
 func (m *MessageIter) Error() error {
