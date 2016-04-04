@@ -27,7 +27,8 @@ func MessageToList(tuple *MsgTuple, m *Message, part int) string {
 	ts := tuple.ToList()
 	filename := m.Parts[part].Filename
 	fs := StringToList(filename)
-	return fmt.Sprintf("%s %s | folder:%q filename:%q from:%q subject:%q contentType:%q\n",
+//TODO from should be %q but then it doesn't match old output; fix after verifying that
+	return fmt.Sprintf("%s %s | folder:%q filename:%q from:%s subject:%q contentType:%q\n",
 		ts, fs,
 		tuple.Folder, filename,
 		m.From, m.Subject,
