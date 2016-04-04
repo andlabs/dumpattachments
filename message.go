@@ -144,10 +144,11 @@ func ParsePart(part []imap.Field) (p *MessagePart, err error) {
 	// we can't use imap.AsFieldMap() here because the key type here is not Atom
 	// TODO will it always be at position 2?
 	ext := imap.AsList(part[2])
-	if len(ext) == 0 || len(ext) % 2 == 1 {
+// TODO there seem to be even deeper trees of multiparts
+/*	if len(ext) % 2 == 1 {
 		return nil, ErrInvalidMessagePart
 	}
-	p.Filename = ""
+*/	p.Filename = ""
 	for i := 0; i < len(ext); i += 2 {
 		// TODO wil it always be capitalized?
 		// TODO error check

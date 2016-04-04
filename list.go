@@ -70,7 +70,7 @@ func ListLinesForFolder(c *Conn, folder string) (string, error) {
 	for m.Next() {
 		tuple, msg, err := m.Message()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "skipping invalid message %s: %v", tuple, err)
+			fmt.Fprintf(os.Stderr, "skipping invalid message %s: %v\n", tuple, err)
 			continue
 		}
 		list += ListLinesForMessage(tuple, msg)
