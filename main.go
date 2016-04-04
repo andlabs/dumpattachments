@@ -4,12 +4,12 @@ package main
 import (
 	"fmt"
 	"os"
-	"io"
+//	"io"
 	"bytes"
 	"strings"
 	"net/mail"
 	"mime"
-	"mime/multipart"
+//	"mime/multipart"
 	"encoding/base64"
 
 	"github.com/mxk/go-imap/imap"
@@ -62,7 +62,7 @@ func handle(cmd *imap.Command, err error) *imap.Command {
 	return finish(cmd)
 }
 
-func extract(raw *imap.Response) (uid uint32, msg *mail.Message, body []byte) {
+func extract(raw *imap.Response) (uid uint32, msg *mail.Message, bodyStructure []imap.Field) {
 	info := raw.MessageInfo()
 	headerbytes := imap.AsBytes(info.Attrs["RFC822.HEADER"])
 	if len(headerbytes) == 0 {
@@ -70,50 +70,48 @@ func extract(raw *imap.Response) (uid uint32, msg *mail.Message, body []byte) {
 	}
 	msg, err := mail.ReadMessage(bytes.NewReader(headerbytes))
 	if err != nil {
+fmt.Fprintln(os.Stderr, hex.Dump(headerbytes))
 		panic(err)
 	}
-	body = imap.AsBytes(info.Attrs["BODY[]"])
-	return info.UID, msg, body
+	bodyStructure = imap.AsList(info.Attrs["BODYSTRUCTURE"])
+	return info.UID, msg, bodyStructure
 }
 
-func canHaveAttachment(msg *mail.Message) (can bool, boundary string) {
+func canHaveAttachment(msg *mail.Message) bool {
 	contentType := msg.Header.Get("Content-Type")
 	if contentType == "" {
 		// assume emails without a Content-Type are text/plain
 		// yeah, I have one from 2009 and I *think* it's text/plain...
-		return false, ""
+		return false
 	}
-	mimetype, parts, err := mime.ParseMediaType(contentType)
+	mimetype, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
 		panic(err)
 	}
 	// this is valid; thanks to kurushiyama in irc.freenode.net/#go-nuts
-	can = strings.HasPrefix(mimetype, "multipart/")
-	if can {
-		boundary = parts["boundary"]
-	}
-	return can, boundary
+	return strings.HasPrefix(mimetype, "multipart/")
 }
 
 func process(path string, raw *imap.Response) {
-	uid, msg, body := extract(raw)
-fmt.Fprintf(os.Stderr, "%q %q\n", msg.Header.Get("From"), msg.Header.Get("Subject"))
-	can, boundary := canHaveAttachment(msg)
-	if !can {
+	uid, msg, bodyStructure := extract(raw)
+fmt.Fprintf(os.Stderr, "%s %q %q\n", path, msg.Header.Get("From"), msg.Header.Get("Subject"))
+	if !canHaveAttachment(msg) {
 		return
 	}
-	r := multipart.NewReader(bytes.NewReader(body), boundary)
-	for {
-		part, err := r.NextPart()
-		if err == io.EOF {
+	for _, part := range bodyStructure {
+		// a string will always be after the last multipart file
+		if imap.TypeOf(part) & imap.List == 0 {
 			break
 		}
-		if err != nil {
-// TODO figure the ones that trip this out
-fmt.Fprintf(os.Stderr, "skipping %q %q %q : %q\n", msg.Header.Get("From"), msg.Header.Get("Subject"), boundary, err);return
-			panic(err)
-		}
-		filename := part.FileName()
+		mime := imap.AsList(part)
+		// TODO will it always be at position 2?
+		ext := imap.AsFieldMap(mime[2])
+		// TODO wil it always be capitalized?
+		filename := ext["NAME"]
+_=filename
+	}
+_=uid
+/*
 		if filename != "" {
 			fmt.Printf("%s %d %s | folder:%q filename:%q from:%s subject:%q contentType:%q\n",
 				// actual fields
@@ -126,8 +124,7 @@ fmt.Fprintf(os.Stderr, "skipping %q %q %q : %q\n", msg.Header.Get("From"), msg.H
 				msg.Header.Get("From"),
 				msg.Header.Get("Subject"),
 				part.Header.Get("Content-Type"))
-		}
-	}
+*/
 }
 
 const fetchSize = 100
@@ -137,8 +134,7 @@ func fetch(c *imap.Client, path string, first uint32, last uint32) {
 	if err != nil {
 		panic(err)
 	}
-	// note the use of BODY.PEEK[] — we don't want things to be marked as read!
-	list := start(c.Fetch(seq, "UID RFC822.HEADER BODY.PEEK[]"))
+	list := start(c.Fetch(seq, "UID RFC822.HEADER BODYSTRUCTURE"))
 	for list.InProgress() {
 		err = c.Recv(-1)
 		if err != nil {
