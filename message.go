@@ -48,8 +48,10 @@ func MsgTupleFromList(split []string) (m *MsgTuple, err error) {
 }
 
 func (m *MsgTuple) ToList() string {
-	return fmt.Sprintf("%s %d %d", StringToList(m.Folder),
-		m.UIDValidity, m.UID)
+//TODO remove after verifying rewrite works
+//	return fmt.Sprintf("%s %d %d", StringToList(m.Folder),
+//		m.UIDValidity, m.UID)
+	return fmt.Sprintf("%s %d", StringToList(m.Folder), m.UID)
 }
 
 func (m *MsgTuple) String() string {

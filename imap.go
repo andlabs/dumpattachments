@@ -94,6 +94,7 @@ func (c *Conn) AllFolders() ([]string, error) {
 	return c.gatherFolders("")
 }
 
+// TODO allow nil receivers
 type MessageIter struct {
 	c		*Conn
 	first		uint64		// uint64 to prevent overflow
