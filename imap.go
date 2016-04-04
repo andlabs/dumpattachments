@@ -2,9 +2,6 @@
 package main
 
 import (
-	"fmt"
-	"strconv"
-
 	"github.com/mxk/go-imap/imap"
 )
 
@@ -37,13 +34,13 @@ func NewConn(server string, user string, pass string, ssl bool) (c *Conn, err er
 		return nil, err
 	}
 
-	if c.Caps["STARTTLS"] {
+	if c.c.Caps["STARTTLS"] {
 		err = c.handle(c.c.StartTLS(nil))
 		if err != nil {
 			return nil, err
 		}
 	}
-	if c.Caps["ID"] {
+	if c.c.Caps["ID"] {
 		err = c.handle(c.c.ID("name", "dumpattachments"))
 		if err != nil {
 			return nil, err
@@ -142,7 +139,7 @@ func (c *Conn) ListMessages(folder string) (*MessageIter, error) {
 		cmd:		cmd,
 		folder:	folder,
 		validity:	c.c.Mailbox.UIDValidity,
-		err:		error,
+		err:		nil,
 	}, nil
 }
 
@@ -159,12 +156,12 @@ func (m *MessageIter) Next() bool {
 		// ...we're done; get ready for the next receipt
 		m.cmd.Data = nil
 		// TODO why do we need this?
-		m.c.Data = nil
+		m.c.c.Data = nil
 	}
 	if !m.cmd.InProgress() {
 		return false
 	}
-	err := m.c.Recv(-1)
+	err := m.c.c.Recv(-1)
 	if err != nil {
 		m.err = err
 		return false
@@ -177,15 +174,15 @@ func (m *MessageIter) Next() bool {
 func (m *MessageIter) Message() (*MsgTuple, *Message, error) {
 	info := m.cmd.Data[m.cur].MessageInfo()
 	tuple := &MsgTuple{
-		Path:			m.path,
+		Folder:		m.folder,
 		UIDValidity:	m.validity,
 		UID:			info.UID,
 	}
-	msg, err := ProcessMessage(info)
+	msg, err := ParseMessage(info)
 	return tuple, msg, err
 }
 
-func (m *MessageIter) Error() error {
+func (m *MessageIter) Err() error {
 	return m.err
 }
 
@@ -194,5 +191,5 @@ func (m *MessageIter) Close() error {
 	if err != nil {
 		return err
 	}
-	return handle(c.c.Close(false))
+	return m.c.handle(m.c.c.Close(false))
 }

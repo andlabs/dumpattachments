@@ -7,6 +7,7 @@ import (
 	"net/mail"
 	"mime"
 	"strings"
+	"strconv"
 
 	"github.com/mxk/go-imap/imap"
 )
@@ -18,7 +19,7 @@ var ErrInvalidMessagePart = fmt.Errorf("invalid message part in message")
 // TOOD get relevant stackoverflow links back
 
 type MsgTuple struct {
-	Mailbox			string
+	Folder			string
 	UIDValidity		uint32
 	UID				uint32
 }
@@ -28,12 +29,10 @@ func parseUint32(str string) (uint32, error) {
 	return uint32(n), err
 }
 
+// precondition: len(split) >= 3 (must be ensured by caller)
 func MsgTupleFromList(split []string) (m *MsgTuple, err error) {
-	if len(split) < 3 {
-		return nil, fmt.Errorf("MsgTupleFromLog(): invalid log line format")
-	}
-	m := new(MsgTuple)
-	m.Mailbox, err = StringFromList(split[0])
+	m = new(MsgTuple)
+	m.Folder, err = StringFromList(split[0])
 	if err != nil {
 		return nil, err
 	}
@@ -49,12 +48,12 @@ func MsgTupleFromList(split []string) (m *MsgTuple, err error) {
 }
 
 func (m *MsgTuple) ToList() string {
-	return fmt.Sprintf("%s %d %d", StringToList(m.Mailbox),
+	return fmt.Sprintf("%s %d %d", StringToList(m.Folder),
 		m.UIDValidity, m.UID)
 }
 
 func (m *MsgTuple) String() string {
-	return fmt.Sprintf("%s %d %d", m.Mailbox,
+	return fmt.Sprintf("%s %d %d", m.Folder,
 		m.UIDValidity, m.UID)
 }
 
@@ -78,13 +77,13 @@ func ParseMessage(info *imap.MessageInfo) (m *Message, err error) {
 	}
 	header := mailmsg.Header
 
-	contentType = header.Get("Content-Type")
+	contentType := header.Get("Content-Type")
 	if contentType == "" {
 		// assume emails without a Content-Type are text/plain
 		// yeah, I have one from 2009 and I *think* it's text/plain...
 		contentType = "text/plain"
 	}
-	m.ContentType, err = mime.ParseMediaType(contentType)
+	m.ContentType, _, err = mime.ParseMediaType(contentType)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +92,7 @@ func ParseMessage(info *imap.MessageInfo) (m *Message, err error) {
 	m.Subject = header.Get("Subject")
 
 	parts := imap.AsList(info.Attrs["BODYSTRUCTURE"])
-	if len(bodyStructure) == 0 {
+	if len(parts) == 0 {
 		return nil, ErrInvalidBodyStructure
 	}
 	for _, part := range parts {
@@ -108,7 +107,7 @@ func ParseMessage(info *imap.MessageInfo) (m *Message, err error) {
 		m.Parts = append(m.Parts, p)
 	}
 	if len(m.Parts) == 0 {			// only one part
-		p, err := ParsePart(bodyStructure)
+		p, err := ParsePart(parts)
 		if err != nil {
 			return nil, err
 		}
@@ -137,14 +136,14 @@ func ParsePart(part []imap.Field) (p *MessagePart, err error) {
 
 	// these will always be at positions 0 and 1
 	// TODO error check
-	p.ContentType := imap.AsString(part[0]) + "/" +
+	p.ContentType = imap.AsString(part[0]) + "/" +
 		imap.AsString(part[1])
 	// and just to look good
 	p.ContentType = strings.ToLower(p.ContentType)
 
 	// we can't use imap.AsFieldMap() here because the key type here is not Atom
 	// TODO will it always be at position 2?
-	ext := imap.AsList(mime[2])
+	ext := imap.AsList(part[2])
 	if len(ext) == 0 || len(ext) % 2 == 1 {
 		return nil, ErrInvalidMessagePart
 	}

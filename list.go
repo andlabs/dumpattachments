@@ -22,7 +22,7 @@ func StringFromList(word string) (string, error) {
 func MessageToList(tuple *MsgTuple, m *Message, part int) string {
 	ts := tuple.ToList()
 	filename := m.Parts[part].Filename
-	fs = StringToList(filename)
+	fs := StringToList(filename)
 	return fmt.Sprintf("%s %s | folder:%q filename:%q from:%q subject:%q contentType:%q\n",
 		ts, fs,
 		tuple.Folder, filename,
@@ -51,7 +51,7 @@ func ListLinesForMessage(tuple *MsgTuple, m *Message) string {
 		return ""
 	}
 	list := ""
-	for i := 0; i < m.Parts; i++ {
+	for i := 0; i < len(m.Parts); i++ {
 		if m.Parts[i].Filename != "" {
 			list += MessageToList(tuple, m, i)
 		}
@@ -97,5 +97,5 @@ func ListLines(c *Conn) (list string, err error) {
 		list += s
 	}
 
-	return list
+	return list, nil
 }
