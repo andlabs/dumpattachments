@@ -7,6 +7,7 @@ import (
 
 // TODOs:
 // - options: -f to limit to a folder, -s for SSL
+// - command to raw dump message header and body for diagnosing bad messages
 
 func main() {
 //	imap.DefaultLogMask = imap.LogAll

@@ -94,7 +94,6 @@ func (c *Conn) AllFolders() ([]string, error) {
 	return c.gatherFolders("")
 }
 
-// TODO allow nil receivers
 type MessageIter struct {
 	c		*Conn
 	first		uint64		// uint64 to prevent overflow
@@ -160,6 +159,10 @@ func (m *MessageIter) nextNextCmd() bool {
 
 // TODO comment this
 func (m *MessageIter) Next() bool {
+	// treat a nil MessageIter as meaning no messages, no error
+	if m == nil {
+		return false
+	}
 	if m.err != nil {
 		return false
 	}
@@ -208,10 +211,16 @@ func (m *MessageIter) Message() (*MsgTuple, *Message, error) {
 }
 
 func (m *MessageIter) Err() error {
+	if m == nil {
+		return nil
+	}
 	return m.err
 }
 
 func (m *MessageIter) Close() error {
+	if m == nil {
+		return nil
+	}
 	if m.cmd != nil {
 		_, err := m.cmd.Result(imap.OK)
 		if err != nil {
