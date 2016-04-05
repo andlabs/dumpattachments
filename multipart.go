@@ -8,12 +8,14 @@ import (
 	"net/mail"
 	"mime"
 	"mime/multipart"
+	"strings"
 )
 
-// TODO recurse multiparts
 type Multipart struct {
-	m	*multipart.Reader
-	p	*multipart.Part
+	// This is a stack of readers, to handle recursive multipart reads.
+	m	[]*multipart.Reader
+	// This, on the other hand, only stores the innermost.
+	p	*Part
 	err	error
 }
 
@@ -30,17 +32,46 @@ func MultipartFromRaw(header []byte, body []byte) (m *Multipart, err error) {
 	boundary := extra["boundary"]
 
 	m = new(Multipart)
-	m.m = multipart.NewReader(bytes.NewReader(body), boundary)
+	m.recurse(body, boundary)
 	return m, nil
 }
 
+func (m *Multipart) nextPart() (*multipart.Part, error) {
+	return m.m[len(m.m) - 1].NextPart()
+}
+
+func (m *Multipart) recurse(body []byte, boundary string) {
+	m2 := multipart.NewReader(bytes.NewReader(body), boundary)
+	m.m = append(m.m, m2)
+}
+
+func (m *Multipart) unrecurse() {
+	m.m = m.m[:len(m.m) - 1]
+}
+
 func (m *Multipart) Next() bool {
-	m.p, m.err = m.m.NextPart()
-	if m.err == io.EOF {		// no more
+	if m.err != nil {			// error
+		return false
+	}
+	if len(m.m) == 0 {		// no more at all
+		return false
+	}
+	mp, err := m.nextPart()
+	m.err = err
+	if m.err == io.EOF {		// no more at this level
 		m.err = nil
+		m.unrecurse()
+		return m.Next()
+	} else if m.err != nil {		// error at this level
 		return false
-	} else if m.err != nil {		// error
+	}
+	m.p, m.err = extractPart(mp)
+	if m.err != nil {
 		return false
+	}
+	if strings.HasPrefix(m.p.ContentType, "multipart/") {
+		m.recurse(m.p.Contents, m.p.Boundary)
+		return m.Next()
 	}
 	return true
 }
@@ -48,23 +79,30 @@ func (m *Multipart) Next() bool {
 type Part struct {
 	Filename		string
 	ContentType	string
+	Boundary		string
 	Contents		[]byte
 }
 
-func (m *Multipart) Part() (p *Part, err error) {
+func extractPart(mp *multipart.Part) (p *Part, err error) {
 	p = new(Part)
-	p.Filename = m.p.FileName()
-	p.ContentType = m.p.Header.Get("Content-Type")
-	p.ContentType, _, err = mime.ParseMediaType(p.ContentType)
+	defer mp.Close()
+	p.Filename = mp.FileName()
+	contentType := mp.Header.Get("Content-Type")
+	contentType, extra, err := mime.ParseMediaType(contentType)
 	if err != nil {
 		return nil, err
 	}
-	p.Contents, err = ioutil.ReadAll(m.p)
+	p.ContentType = contentType
+	p.Boundary = extra["boundary"]
+	p.Contents, err = ioutil.ReadAll(mp)
 	if err != nil {
 		return nil, err
 	}
-	m.p.Close()
 	return p, nil
+}
+
+func (m *Multipart) Part() *Part {
+	return m.p
 }
 
 func (m *Multipart) Err() error {

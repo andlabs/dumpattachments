@@ -115,13 +115,10 @@ func main() {
 				panic(err)
 			}
 			for m.Next() {
-				p, err := m.Part()
-				if err != nil {
-					panic(err)
-				}
-fmt.Println(p.ContentType)
+				p := m.Part()
 				if p.ContentType == "text/plain" || p.ContentType == "text/html" {
 					os.Stdout.Write(p.Contents)
+					fmt.Println()			// just in case
 					break
 				}
 			}
