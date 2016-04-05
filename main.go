@@ -41,6 +41,34 @@ func notenoughargs(command string) {
 	os.Exit(2)
 }
 
+func doRaw(f func(header []byte, body []byte), server string, user string, pass string, command string, cmdargs []string) {
+	if len(cmdargs) != 3 {
+		notenoughargs(command)
+	}
+	tuple, err := MsgTupleFromArgs(cmdargs)
+	if err != nil {
+		errf("%s: %s: invalid message tuple: %v", os.Args[0], command, err)
+		os.Exit(1)
+	}
+	do(func(c *Conn) {
+		header, body, err := c.RawMessage(tuple)
+		if err != nil {
+			errf("%s: %s: error getting message: %v", os.Args[0], command, err)
+			os.Exit(1)
+		}
+		f(header, body)
+	}, server, user, pass)
+}
+
+func do(f func(c *Conn), server string, user string, pass string) {
+	c, err := NewConn(server, user, pass, true)
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
+	f(c)
+}
+
 func main() {
 	flag.Usage = usage
 	flag.Parse()
@@ -61,37 +89,21 @@ func main() {
 		imap.DefaultLogMask = imap.LogAll
 	}
 
-	// TODO move this after the command check somehow
-	c, err := NewConn(server, user, pass, true)
-	if err != nil {
-		panic(err)
-	}
-	defer c.Close()
-
 	switch command {
 	case "list":
-		err = ListLines(c)
-		if err != nil {
-			panic(err)
-		}
+		do(func(c *Conn) {
+			err := ListLines(c)
+			if err != nil {
+				panic(err)
+			}
+		}, server, user, pass)
 	case "rawdump":
-		if len(cmdargs) != 3 {
-			notenoughargs(command)
-		}
-		tuple, err := MsgTupleFromArgs(cmdargs)
-		if err != nil {
-			errf("%s: %s: invalid message tuple: %v", os.Args[0], command, err)
-			os.Exit(1)
-		}
-		header, body, err := c.RawMessage(tuple)
-		if err != nil {
-			errf("%s: %s: error getting message: %v", os.Args[0], command, err)
-			os.Exit(1)
-		}
-		fmt.Printf("header:\n")
-		fmt.Print(hex.Dump(header))
-		fmt.Printf("body:\n")
-		fmt.Print(hex.Dump(body))
+		doRaw(func(header []byte, body []byte) {
+			fmt.Printf("header:\n")
+			fmt.Print(hex.Dump(header))
+			fmt.Printf("body:\n")
+			fmt.Print(hex.Dump(body))
+		}, server, user, pass, command, cmdargs)
 	default:
 		errf("%s: unknown command %q", os.Args[0], command)
 		usage()
