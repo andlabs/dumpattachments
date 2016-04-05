@@ -29,12 +29,17 @@ func parseUint32(str string) (uint32, error) {
 	return uint32(n), err
 }
 
-// precondition: len(split) >= 3 (must be ensured by caller)
-func MsgTupleFromList(split []string) (m *MsgTuple, err error) {
+func mktuple(split []string, list bool) (m *MsgTuple, err error) {
 	m = new(MsgTuple)
-	m.Folder, err = StringFromList(split[0])
-	if err != nil {
-		return nil, err
+	if len(split) < 3 {
+		// TODO
+	}
+	m.Folder = split[0]
+	if list {
+		m.Folder, err = StringFromList(m.Folder)
+		if err != nil {
+			return nil, err
+		}
 	}
 	m.UIDValidity, err = parseUint32(split[1])
 	if err != nil {
@@ -45,6 +50,14 @@ func MsgTupleFromList(split []string) (m *MsgTuple, err error) {
 		return nil, err
 	}
 	return m, nil
+}
+
+func MsgTupleFromArgs(split []string) (m *MsgTuple, err error) {
+	return mktuple(split, false)
+}
+
+func MsgTupleFromList(split []string) (m *MsgTuple, err error) {
+	return mktuple(split, true)
 }
 
 func (m *MsgTuple) ToList() string {

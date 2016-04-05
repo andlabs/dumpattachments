@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 	"flag"
+	"encoding/hex"
 
 	"github.com/mxk/go-imap/imap"
 )
 
 // TODOs:
 // - options: -f to limit to a folder, -s for SSL
-// - command to raw dump message header and body for diagnosing bad messages
 // - command to dump text or html part of message to verify this is what you want
 
 var (
@@ -31,6 +31,14 @@ func usage() {
 	errf("commands:")
 	errf("  list")
 	errf("	print a list of attachments to stdout")
+	errf("  rawdump mailbox uidverify uid")
+	errf("	hex dump the raw header and body of the given email")
+}
+
+func notenoughargs(command string) {
+	errf("%s: not enough arguments for command %s", os.Args[0], command)
+	usage()
+	os.Exit(2)
 }
 
 func main() {
@@ -47,7 +55,7 @@ func main() {
 	user := args[1]
 	pass := args[2]
 	command := args[3]
-//	cmdargs := args[4:]
+	cmdargs := args[4:]
 
 	if *imapdebug {
 		imap.DefaultLogMask = imap.LogAll
@@ -66,6 +74,24 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+	case "rawdump":
+		if len(cmdargs) != 3 {
+			notenoughargs(command)
+		}
+		tuple, err := MsgTupleFromArgs(cmdargs)
+		if err != nil {
+			errf("%s: %s: invalid message tuple: %v", os.Args[0], command, err)
+			os.Exit(1)
+		}
+		header, body, err := c.RawMessage(tuple)
+		if err != nil {
+			errf("%s: %s: error getting message: %v", os.Args[0], command, err)
+			os.Exit(1)
+		}
+		fmt.Printf("header:\n")
+		fmt.Print(hex.Dump(header))
+		fmt.Printf("body:\n")
+		fmt.Print(hex.Dump(body))
 	default:
 		errf("%s: unknown command %q", os.Args[0], command)
 		usage()
