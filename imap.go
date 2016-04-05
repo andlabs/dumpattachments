@@ -134,12 +134,12 @@ func (m *MessageIter) nextNextCmd() bool {
 	}
 
 	set := &imap.SeqSet{}
-	last := m.first + messagesPerCmd - 1
+	last := m.first + messagesPerCmd//TODO - 1
 	if last > m.n {
 		last = m.n
 	}
 	set.AddRange(uint32(m.first), uint32(last))
-	m.first = last + 1
+m.first+=messagesPerCmd//TODO	m.first = last + 1
 	m.cmd, m.err = m.c.c.Fetch(set, "UID RFC822.HEADER BODYSTRUCTURE")
 	// just to be safe
 	if m.err != nil && m.cmd != nil {
