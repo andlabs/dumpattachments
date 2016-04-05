@@ -175,18 +175,27 @@ func (m *MessageIter) Next() bool {
 		// TODO why do we need this?
 		m.c.c.Data = nil
 	}
-TODO:
-	if !m.cmd.InProgress() {
-		_, m.err = m.cmd.Result(imap.OK)
-		m.cmd = nil
-		return m.Next()
+	// Sometimes we can get an empty m.cmd.Data; in that case, we need to run these steps again.
+	for {
+		if !m.cmd.InProgress() {
+			_, m.err = m.cmd.Result(imap.OK)
+			m.cmd = nil
+			return m.Next()
+		}
+		m.err = m.c.c.Recv(-1)
+		if m.err != nil {
+			return false
+		}
+		if len(m.cmd.Data) == 0 {
+			// just to be safe
+			m.cmd.Data = nil
+			// TODO why do we need this?
+			m.c.c.Data = nil
+			continue
+		}
+		// otherwise we made it
+		break
 	}
-	m.err = m.c.c.Recv(-1)
-	if m.err != nil {
-		return false
-	}
-//TODO is this the result of a bad connection?
-if len(m.cmd.Data)==0{goto TODO}
 	m.cur = 0
 	return true
 }
