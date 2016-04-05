@@ -231,3 +231,30 @@ func (m *MessageIter) Close() error {
 	}
 	return m.c.handle(m.c.c.Close(false))
 }
+
+// TODO what do we do with tuple.UIDValidity?
+func (c *Conn) RawMessage(tuple *MsgTuple) (header []byte, body []byte, err error) {
+	err = c.handle(c.c.Select(tuple.Folder, true))
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() {		// must be closure; otherwise c.c.Close() called immediately
+		c.handle(c.c.Close(false))
+	}()
+
+	set := &imap.SeqSet{}
+	set.AddNum(tuple.UID)
+	cmd, err := imap.Wait(c.c.UIDFetch(set, "RFC822.HEADER BODY.PEEK[]"))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(cmd.Data) != 1 {
+		// TODO
+	}
+
+	info := cmd.Data[0].MessageInfo()
+	header = imap.AsBytes(info.Attrs["RFC822.HEADER"])
+	body = imap.AsBytes(info.Attrs["BODY[]"])
+	return header, body, nil
+}
