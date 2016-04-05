@@ -63,31 +63,23 @@ func (c *Conn) Close() error {
 	return c.handle(c.c.Logout(-1))
 }
 
-// TODO if we're using imap.Wait() we can just do away with the caching and go depth first
 func (c *Conn) gatherFolders(root string) ([]string, error) {
-	// first gather everything at root
 	cmd, err := imap.Wait(c.c.List(root, "%"))
 	if err != nil {
 		return nil, err
 	}
-	subs := make([]string, 0, len(cmd.Data))
-	for _, sub := range cmd.Data {
-		subs = append(subs, sub.MailboxInfo().Name)
-	}
-
-	// now gather their children
-	// preallocate a safe bet to avoid slowdown issues
-	children := make([]string, 0, 4 * len(subs))
-	for _, sub := range subs {
-		child, err := c.gatherFolders(sub)
+	// scale it up just to be safe for complex trees
+	folders := make([]string, 0, len(cmd.Data) * 4)
+	for _, folder := range cmd.Data {
+		name := folder.MailboxInfo().Name
+		folders = append(folders, name)
+		subs, err := c.gatherFolders(name)
 		if err != nil {
 			return nil, err
 		}
-		children = append(children, child...)
+		folders = append(folders, subs...)
 	}
-
-	// and combine the two
-	return append(subs, children...), nil
+	return folders, nil
 }
 
 func (c *Conn) AllFolders() ([]string, error) {
