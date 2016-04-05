@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 )
 
+// TODO recurse multiparts
 type Multipart struct {
 	m	*multipart.Reader
 	p	*multipart.Part
@@ -54,6 +55,10 @@ func (m *Multipart) Part() (p *Part, err error) {
 	p = new(Part)
 	p.Filename = m.p.FileName()
 	p.ContentType = m.p.Header.Get("Content-Type")
+	p.ContentType, _, err = mime.ParseMediaType(p.ContentType)
+	if err != nil {
+		return nil, err
+	}
 	p.Contents, err = ioutil.ReadAll(m.p)
 	if err != nil {
 		return nil, err

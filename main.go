@@ -13,6 +13,7 @@ import (
 // TODOs:
 // - options: -f to limit to a folder, -s for SSL
 // - command to dump text or html part of message to verify this is what you want
+// - replace panics in this file
 
 var (
 	imapdebug = flag.Bool("imapdebug", false, "debug IMAP session")
@@ -33,6 +34,9 @@ func usage() {
 	errf("	print a list of attachments to stdout")
 	errf("  rawdump mailbox uidverify uid")
 	errf("	hex dump the raw header and body of the given email")
+	errf("  read mailbox uidverify uid")
+	errf("	writes the first text/plain or text/html part of the email to stdout;")
+	errf("	does not mark as read (useful for seeing if this is the email you want)")
 }
 
 func notenoughargs(command string) {
@@ -103,6 +107,28 @@ func main() {
 			fmt.Print(hex.Dump(header))
 			fmt.Printf("body:\n")
 			fmt.Print(hex.Dump(body))
+		}, server, user, pass, command, cmdargs)
+	case "read":
+		doRaw(func(header []byte, body []byte) {
+			m, err := MultipartFromRaw(header, body)
+			if err != nil {
+				panic(err)
+			}
+			for m.Next() {
+				p, err := m.Part()
+				if err != nil {
+					panic(err)
+				}
+fmt.Println(p.ContentType)
+				if p.ContentType == "text/plain" || p.ContentType == "text/html" {
+					os.Stdout.Write(p.Contents)
+					break
+				}
+			}
+			if err := m.Err(); err != nil {
+				panic(err)
+			}
+			// TODO alert that nothing was found
 		}, server, user, pass, command, cmdargs)
 	default:
 		errf("%s: unknown command %q", os.Args[0], command)

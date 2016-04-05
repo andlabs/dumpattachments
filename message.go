@@ -157,7 +157,7 @@ func ParsePart(part []imap.Field) (p *MessagePart, err error) {
 	// we can't use imap.AsFieldMap() here because the key type here is not Atom
 	// TODO will it always be at position 2?
 	ext := imap.AsList(part[2])
-// TODO there seem to be even deeper trees of multiparts
+// TODO recurse multiparts
 /*	if len(ext) % 2 == 1 {
 		return nil, ErrInvalidMessagePart
 	}
