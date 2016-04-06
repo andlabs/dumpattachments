@@ -25,13 +25,36 @@ func tryOpen(filename string) (f *os.File, realFilename string, err error) {
 	return f, realFilename, nil
 }
 
-func writeOut(filename string, body []byte) (realFilename string, err error) {
+func writeOut(filename string, header []byte, body []byte) (realFilename string, err error) {
+	var part *Part
+
+	m, err := MultipartFromRaw(header, body)
+	if err != nil {
+		return "", err
+	}
+	for m.Next() {
+		p := m.Part()
+		if p.Filename == filename {
+			part = p
+			break
+		}
+	}
+	if err := m.Err(); err != nil {
+		return "", err
+	}
+	if part == nil {
+		return "", fmt.Errorf("file %q not found in message", filename)
+	}
+
 	f, realFilename, err := tryOpen(filename)
 	if err != nil {
 		return "", err
 	}
-errf("%s\n", realFilename)
-f.Close()
+	defer f.Close()
+	_, err = f.Write(part.Contents)
+	if err != nil {
+		return "", err
+	}
 	return realFilename, nil
 }
 
@@ -59,14 +82,14 @@ func doDump(c *Conn) {
 			someError = true
 			continue
 		}
-		_, body, err := c.RawMessage(tuple)
+		header, body, err := c.RawMessage(tuple)
 		if err != nil {
 			errf("failed to retrieve message for line %d (%v); skipping", lineno, err)
 			someError = true
 			continue
 		}
 errf("%s",filename)
-		filename, err = writeOut(filename, body)
+		filename, err = writeOut(filename, header, body)
 		if err != nil {
 			errf("failed to write %s (%v) for line %d; skipping", filename, err, lineno)
 			someError = true
