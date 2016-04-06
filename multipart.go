@@ -100,6 +100,8 @@ func extractPart(mp *multipart.Part) (p *Part, err error) {
 		return nil, err
 	}
 	p.Encoding = mp.Header.Get("Content-Transfer-Encoding")
+	// I've seen this in all caps, so...
+	p.Encoding = strings.ToLower(p.Encoding)
 	return p, nil
 }
 
