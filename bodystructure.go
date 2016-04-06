@@ -28,25 +28,25 @@ func ParseBodyStructure(bodyStructure imap.Field) (b *BodyStructure, err error) 
 	}
 	firstType := imap.TypeOf(elem[0])
 	b.Multipart = firstType & imap.List != 0
-	if !b.Multipart {
-		b.ContentType = imap.AsString(elem[0])
-	} else {
-		b.ContentType = "multipart"
-	}
-	b.ContentType += "/" + imap.AsString(elem[1])
-	// these fields seem to be all uppercase; make them lowercase to make things easier
-	b.ContentType = strings.ToLower(b.ContentType)
 
+	i := 1			// determines placement of subtype; set to non-multipart first
 	if b.Multipart {
-		parts := imap.AsList(elem[0])
-		// TODO is zero parts invalid?
-		b.Parts = make([]*BodyStructure, 0, len(parts))
-		for _, part := range parts {
-			pb, err := ParseBodyStructure(part)
+		var e imap.Field
+
+		b.ContentType = "multipart"
+		// huh: the spec says the first item should be a list of lists,
+		// but in practice this is just items until the first string?
+		// TODO
+		for i, e = range elem {
+			// first non-list (string) item ends it
+			if imap.TypeOf(e) & imap.List == 0 {
+				break
+			}
+			part, err := ParseBodyStructure(e)
 			if err != nil {
 				return nil, err
 			}
-			b.Parts = append(b.Parts, pb)
+			b.Parts = append(b.Parts, part)
 		}
 	} else if len(elem) > 2 {		// TODO is omitting this valid?
 		if imap.TypeOf(elem[2]) & imap.List != 0 {
@@ -64,6 +64,10 @@ func ParseBodyStructure(bodyStructure imap.Field) (b *BodyStructure, err error) 
 			}
 		}
 	}
+
+	b.ContentType += "/" + imap.AsString(elem[i])
+	// these fields seem to be all uppercase; make them lowercase to make things easier
+	b.ContentType = strings.ToLower(b.ContentType)
 
 	return b, nil
 }
