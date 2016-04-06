@@ -94,7 +94,6 @@ type MessageIter struct {
 	validity uint32
 	err      error
 
-	// When cmd is nil, first:first+messagesPerCmd messages are extracted into cmd and first is advanced.
 	cmd *imap.Command
 	cur int
 }

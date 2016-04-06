@@ -56,7 +56,7 @@ func ParseBodyStructure(bodyStructure imap.Field) (b *BodyStructure, err error) 
 				return nil, ErrOddBodyParameters
 			}
 			for i := 0; i < len(kv); i += 2 {
-				// TODO will it also be capitalized?
+				// TODO will it always be capitalized?
 				if imap.AsString(kv[i]) == "NAME" {
 					b.Name = imap.AsString(kv[i + 1])
 					break
