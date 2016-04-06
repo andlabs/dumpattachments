@@ -126,8 +126,8 @@ type MessagePart struct {
 func BodyStructureToPartList(bs *BodyStructure) (pl []*MessagePart) {
 	if !bs.Multipart {
 		p := &MessagePart{
-			ContentType:	bs.ContentType,
-			Filename:		bs.Name,
+			ContentType: bs.ContentType,
+			Filename:    bs.Name,
 		}
 		return []*MessagePart{p}
 	}
