@@ -6,7 +6,7 @@ import (
 )
 
 type Conn struct {
-	c	*imap.Client
+	c *imap.Client
 }
 
 func (c *Conn) handle(cmd *imap.Command, err error) error {
@@ -69,7 +69,7 @@ func (c *Conn) gatherFolders(root string) ([]string, error) {
 		return nil, err
 	}
 	// scale it up just to be safe for complex trees
-	folders := make([]string, 0, len(cmd.Data) * 4)
+	folders := make([]string, 0, len(cmd.Data)*4)
 	for _, folder := range cmd.Data {
 		name := folder.MailboxInfo().Name
 		folders = append(folders, name)
@@ -87,16 +87,16 @@ func (c *Conn) AllFolders() ([]string, error) {
 }
 
 type MessageIter struct {
-	c		*Conn
-	first		uint64		// uint64 to prevent overflow
-	n		uint64
-	folder	string
-	validity	uint32
-	err		error
+	c        *Conn
+	first    uint64 // uint64 to prevent overflow
+	n        uint64
+	folder   string
+	validity uint32
+	err      error
 
 	// When cmd is nil, first:first+messagesPerCmd messages are extracted into cmd and first is advanced.
-	cmd		*imap.Command
-	cur		int
+	cmd *imap.Command
+	cur int
 }
 
 const messagesPerCmd = 100
@@ -120,16 +120,16 @@ func (c *Conn) ListMessages(folder string) (*MessageIter, error) {
 	}
 
 	return &MessageIter{
-		c:		c,
-		first:		1,
-		n:		uint64(c.c.Mailbox.Messages),
-		folder:	folder,
-		validity:	c.c.Mailbox.UIDValidity,
+		c:        c,
+		first:    1,
+		n:        uint64(c.c.Mailbox.Messages),
+		folder:   folder,
+		validity: c.c.Mailbox.UIDValidity,
 	}, nil
 }
 
 func (m *MessageIter) nextNextCmd() bool {
-	if m.first > m.n {		// finished?
+	if m.first > m.n { // finished?
 		return false
 	}
 
@@ -204,9 +204,9 @@ func (m *MessageIter) Next() bool {
 func (m *MessageIter) Message() (*MsgTuple, *Message, error) {
 	info := m.cmd.Data[m.cur].MessageInfo()
 	tuple := &MsgTuple{
-		Folder:		m.folder,
-		UIDValidity:	m.validity,
-		UID:			info.UID,
+		Folder:      m.folder,
+		UIDValidity: m.validity,
+		UID:         info.UID,
 	}
 	msg, err := ParseMessage(info)
 	return tuple, msg, err
@@ -238,7 +238,7 @@ func (c *Conn) RawMessage(tuple *MsgTuple) (header []byte, body []byte, err erro
 	if err != nil {
 		return nil, nil, err
 	}
-	defer func() {		// must be closure; otherwise c.c.Close() called immediately
+	defer func() { // must be closure; otherwise c.c.Close() called immediately
 		c.handle(c.c.Close(false))
 	}()
 

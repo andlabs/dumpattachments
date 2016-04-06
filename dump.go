@@ -2,20 +2,20 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"io"
 	"bufio"
-	"strings"
 	"bytes"
 	"encoding/base64"
+	"fmt"
+	"io"
+	"os"
+	"strings"
 )
 
 func tryOpen(filename string) (f *os.File, realFilename string, err error) {
 	realFilename = filename
 	suffix := 0
 	for {
-		f, err = os.OpenFile(realFilename, os.O_WRONLY | os.O_CREATE | os.O_EXCL, 0644)
+		f, err = os.OpenFile(realFilename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 		if err == nil {
 			break
 		}
@@ -52,7 +52,7 @@ func writeOut(filename string, header []byte, body []byte) (realFilename string,
 
 	reader = bytes.NewReader(part.Contents)
 	switch part.Encoding {
-	case "":			// none; assume no encoding
+	case "": // none; assume no encoding
 		// do nothing
 	case "base64":
 		reader = base64.NewDecoder(base64.StdEncoding, reader)

@@ -2,9 +2,9 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
-	"encoding/base64"
 	"strings"
 )
 

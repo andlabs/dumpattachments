@@ -2,12 +2,12 @@
 package main
 
 import (
-	"fmt"
 	"bytes"
-	"net/mail"
+	"fmt"
 	"mime"
-	"strings"
+	"net/mail"
 	"strconv"
+	"strings"
 
 	"github.com/mxk/go-imap/imap"
 )
@@ -19,9 +19,9 @@ var ErrInvalidMessagePart = fmt.Errorf("invalid message part in message")
 // TOOD get relevant stackoverflow links back
 
 type MsgTuple struct {
-	Folder			string
-	UIDValidity		uint32
-	UID				uint32
+	Folder      string
+	UIDValidity uint32
+	UID         uint32
 }
 
 func parseUint32(str string) (uint32, error) {
@@ -71,10 +71,10 @@ func (m *MsgTuple) String() string {
 }
 
 type Message struct {
-	ContentType	string
-	From		string
-	Subject		string
-	Parts			[]*MessagePart
+	ContentType string
+	From        string
+	Subject     string
+	Parts       []*MessagePart
 }
 
 func ParseMessage(info *imap.MessageInfo) (m *Message, err error) {
@@ -110,7 +110,7 @@ func ParseMessage(info *imap.MessageInfo) (m *Message, err error) {
 	}
 	for _, part := range parts {
 		// a string will always be after the last multipart file
-		if imap.TypeOf(part) & imap.List == 0 {
+		if imap.TypeOf(part)&imap.List == 0 {
 			break
 		}
 		p, err := ParsePart(imap.AsList(part))
@@ -119,7 +119,7 @@ func ParseMessage(info *imap.MessageInfo) (m *Message, err error) {
 		}
 		m.Parts = append(m.Parts, p)
 	}
-	if len(m.Parts) == 0 {			// only one part
+	if len(m.Parts) == 0 { // only one part
 		p, err := ParsePart(parts)
 		if err != nil {
 			return nil, err
@@ -137,8 +137,8 @@ func (m *Message) CanHaveAttachments() bool {
 }
 
 type MessagePart struct {
-	ContentType	string
-	Filename		string
+	ContentType string
+	Filename    string
 }
 
 func ParsePart(part []imap.Field) (p *MessagePart, err error) {
@@ -166,7 +166,7 @@ func ParsePart(part []imap.Field) (p *MessagePart, err error) {
 		// TODO wil it always be capitalized?
 		// TODO error check
 		if imap.AsString(ext[i]) == "NAME" {
-			p.Filename = imap.AsString(ext[i + 1])
+			p.Filename = imap.AsString(ext[i+1])
 			break
 		}
 	}

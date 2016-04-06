@@ -2,21 +2,21 @@
 package main
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
-	"bytes"
-	"net/mail"
 	"mime"
 	"mime/multipart"
+	"net/mail"
 	"strings"
 )
 
 type Multipart struct {
 	// This is a stack of readers, to handle recursive multipart reads.
-	m	[]*multipart.Reader
+	m []*multipart.Reader
 	// This, on the other hand, only stores the innermost.
-	p	*Part
-	err	error
+	p   *Part
+	err error
 }
 
 func MultipartFromRaw(header []byte, body []byte) (m *Multipart, err error) {
@@ -37,7 +37,7 @@ func MultipartFromRaw(header []byte, body []byte) (m *Multipart, err error) {
 }
 
 func (m *Multipart) nextPart() (*multipart.Part, error) {
-	return m.m[len(m.m) - 1].NextPart()
+	return m.m[len(m.m)-1].NextPart()
 }
 
 func (m *Multipart) recurse(body []byte, boundary string) {
@@ -46,23 +46,23 @@ func (m *Multipart) recurse(body []byte, boundary string) {
 }
 
 func (m *Multipart) unrecurse() {
-	m.m = m.m[:len(m.m) - 1]
+	m.m = m.m[:len(m.m)-1]
 }
 
 func (m *Multipart) Next() bool {
-	if m.err != nil {			// error
+	if m.err != nil { // error
 		return false
 	}
-	if len(m.m) == 0 {		// no more at all
+	if len(m.m) == 0 { // no more at all
 		return false
 	}
 	mp, err := m.nextPart()
 	m.err = err
-	if m.err == io.EOF {		// no more at this level
+	if m.err == io.EOF { // no more at this level
 		m.err = nil
 		m.unrecurse()
 		return m.Next()
-	} else if m.err != nil {		// error at this level
+	} else if m.err != nil { // error at this level
 		return false
 	}
 	m.p, m.err = extractPart(mp)
@@ -77,11 +77,11 @@ func (m *Multipart) Next() bool {
 }
 
 type Part struct {
-	Filename		string
-	ContentType	string
-	Boundary		string
-	Contents		[]byte
-	Encoding		string
+	Filename    string
+	ContentType string
+	Boundary    string
+	Contents    []byte
+	Encoding    string
 }
 
 func extractPart(mp *multipart.Part) (p *Part, err error) {

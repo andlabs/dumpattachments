@@ -2,10 +2,10 @@
 package main
 
 import (
+	"encoding/hex"
+	"flag"
 	"fmt"
 	"os"
-	"flag"
-	"encoding/hex"
 
 	"github.com/mxk/go-imap/imap"
 )
@@ -122,7 +122,7 @@ func main() {
 				p := m.Part()
 				if p.ContentType == "text/plain" || p.ContentType == "text/html" {
 					os.Stdout.Write(p.Contents)
-					fmt.Println()			// just in case
+					fmt.Println() // just in case
 					break
 				}
 			}
