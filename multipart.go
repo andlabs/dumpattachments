@@ -81,6 +81,7 @@ type Part struct {
 	ContentType	string
 	Boundary		string
 	Contents		[]byte
+	Encoding		string
 }
 
 func extractPart(mp *multipart.Part) (p *Part, err error) {
@@ -98,6 +99,7 @@ func extractPart(mp *multipart.Part) (p *Part, err error) {
 	if err != nil {
 		return nil, err
 	}
+	p.Encoding = mp.Header.Get("Content-Transfer-Encoding")
 	return p, nil
 }
 

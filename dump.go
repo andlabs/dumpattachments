@@ -4,8 +4,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"io"
 	"bufio"
 	"strings"
+	"bytes"
+	"encoding/base64"
 )
 
 func tryOpen(filename string) (f *os.File, realFilename string, err error) {
@@ -27,6 +30,7 @@ func tryOpen(filename string) (f *os.File, realFilename string, err error) {
 
 func writeOut(filename string, header []byte, body []byte) (realFilename string, err error) {
 	var part *Part
+	var reader io.Reader
 
 	m, err := MultipartFromRaw(header, body)
 	if err != nil {
@@ -46,12 +50,22 @@ func writeOut(filename string, header []byte, body []byte) (realFilename string,
 		return "", fmt.Errorf("file %q not found in message", filename)
 	}
 
+	reader = bytes.NewReader(part.Contents)
+	switch part.Encoding {
+	case "":			// none; assume no encoding
+		// do nothing
+	case "base64":
+		reader = base64.NewDecoder(base64.StdEncoding, reader)
+	default:
+		return "", fmt.Errorf("unknown Content-Transfer-Encoding %q for file %q", part.Encoding, filename)
+	}
+
 	f, realFilename, err := tryOpen(filename)
 	if err != nil {
 		return "", err
 	}
 	defer f.Close()
-	_, err = f.Write(part.Contents)
+	_, err = io.Copy(f, reader)
 	if err != nil {
 		return "", err
 	}
