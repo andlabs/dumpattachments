@@ -13,8 +13,6 @@ import (
 )
 
 var ErrNoHeader = fmt.Errorf("no header in message")
-var ErrInvalidBodyStructure = fmt.Errorf("invalid body structure in message")
-var ErrInvalidMessagePart = fmt.Errorf("invalid message part in message")
 
 // TOOD get relevant stackoverflow links back
 
@@ -104,28 +102,12 @@ func ParseMessage(info *imap.MessageInfo) (m *Message, err error) {
 	m.From = header.Get("From")
 	m.Subject = header.Get("Subject")
 
-	parts := imap.AsList(info.Attrs["BODYSTRUCTURE"])
-	if len(parts) == 0 {
-		return nil, ErrInvalidBodyStructure
+	bodyStructure := info.Attrs["BODYSTRUCTURE"]
+	b, err := ParseBodyStructure(bodyStructure)
+	if err != nil {
+		return nil, err
 	}
-	for _, part := range parts {
-		// a string will always be after the last multipart file
-		if imap.TypeOf(part)&imap.List == 0 {
-			break
-		}
-		p, err := ParsePart(imap.AsList(part))
-		if err != nil {
-			return nil, err
-		}
-		m.Parts = append(m.Parts, p)
-	}
-	if len(m.Parts) == 0 { // only one part
-		p, err := ParsePart(parts)
-		if err != nil {
-			return nil, err
-		}
-		m.Parts = append(m.Parts, p)
-	}
+	m.Parts = BodyStructureToPartList(b)
 
 	return m, nil
 }
@@ -141,35 +123,17 @@ type MessagePart struct {
 	Filename    string
 }
 
-func ParsePart(part []imap.Field) (p *MessagePart, err error) {
-	p = new(MessagePart)
-	if len(part) < 3 {
-		return nil, ErrInvalidMessagePart
-	}
-
-	// these will always be at positions 0 and 1
-	// TODO error check
-	p.ContentType = imap.AsString(part[0]) + "/" +
-		imap.AsString(part[1])
-	// and just to look good
-	p.ContentType = strings.ToLower(p.ContentType)
-
-	// we can't use imap.AsFieldMap() here because the key type here is not Atom
-	// TODO will it always be at position 2?
-	ext := imap.AsList(part[2])
-// TODO recurse multiparts
-/*	if len(ext) % 2 == 1 {
-		return nil, ErrInvalidMessagePart
-	}
-*/	p.Filename = ""
-	for i := 0; i < len(ext); i += 2 {
-		// TODO wil it always be capitalized?
-		// TODO error check
-		if imap.AsString(ext[i]) == "NAME" {
-			p.Filename = imap.AsString(ext[i+1])
-			break
+func BodyStructureToPartList(bs *BodyStructure) (pl []*MessagePart) {
+	if !bs.Multipart {
+		p := &MessagePart{
+			ContentType:	bs.ContentType,
+			Filename:		bs.Name,
 		}
+		return []*MessagePart{p}
 	}
-
-	return p, nil
+	list := make([]*MessagePart, 0, len(bs.Parts))
+	for _, part := range bs.Parts {
+		list = append(list, BodyStructureToPartList(part)...)
+	}
+	return list
 }

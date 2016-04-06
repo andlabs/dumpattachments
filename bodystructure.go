@@ -8,7 +8,8 @@ import (
 	"github.com/mxk/go-imap/imap"
 )
 
-var ErrInvalidBodyStructure = fmt.Errorf("invalid body structure")
+var ErrIncompleteBodyStructure = fmt.Errorf("incomplete body structure")
+var ErrOddBodyParameters = fmt.Errorf("odd number of body parameters in non-multipart body structure entry")
 
 type BodyStructure struct {
 	Multipart		bool
@@ -17,14 +18,13 @@ type BodyStructure struct {
 	Parts			[]*BodyStructure
 }
 
-// TODO differentiate errors?
 // TODO stricter type checking?
 func ParseBodyStructure(bodyStructure imap.Field) (b *BodyStructure, err error) {
 	b = new(BodyStructure)
 
 	elem := imap.AsList(bodyStructure)
 	if len(elem) < 2 {
-		return nil, ErrInvalidBodyStructure
+		return nil, ErrIncompleteBodyStructure
 	}
 	firstType := imap.TypeOf(elem[0])
 	b.Multipart = firstType & imap.List != 0
@@ -49,18 +49,18 @@ func ParseBodyStructure(bodyStructure imap.Field) (b *BodyStructure, err error) 
 			b.Parts = append(b.Parts, part)
 		}
 	} else if len(elem) > 2 {		// TODO is omitting this valid?
-		if imap.TypeOf(elem[2]) & imap.List != 0 {
-			return nil, ErrInvalidBodyStructure
-		}
+		b.ContentType = imap.AsString(elem[0])
 		kv := imap.AsList(elem[2])
-		if len(kv) % 2 != 0 {
-			return nil, ErrInvalidBodyStructure
-		}
-		for i := 0; i < len(kv); i += 2 {
-			// TODO will it also be capitalized?
-			if imap.AsString(kv[i]) == "NAME" {
-				b.Name = imap.AsString(kv[i + 1])
-				break
+		if len(kv) != 0 {			// only if there are parameters
+			if len(kv) % 2 != 0 {
+				return nil, ErrOddBodyParameters
+			}
+			for i := 0; i < len(kv); i += 2 {
+				// TODO will it also be capitalized?
+				if imap.AsString(kv[i]) == "NAME" {
+					b.Name = imap.AsString(kv[i + 1])
+					break
+				}
 			}
 		}
 	}
