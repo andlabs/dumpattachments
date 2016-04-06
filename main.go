@@ -104,7 +104,7 @@ func main() {
 			}
 		}, server, user, pass)
 	case "dump":
-		do(doDump, server, user, pass)
+		do(DoDump, server, user, pass)
 	case "rawdump":
 		doRaw(func(header []byte, body []byte) {
 			fmt.Printf("header:\n")

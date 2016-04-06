@@ -58,7 +58,7 @@ func writeOut(filename string, header []byte, body []byte) (realFilename string,
 	return realFilename, nil
 }
 
-func doDump(c *Conn) {
+func DoDump(c *Conn) {
 	someError := false
 	stdin := bufio.NewScanner(os.Stdin)
 	for lineno := 1; stdin.Scan(); lineno++ {
@@ -88,7 +88,6 @@ func doDump(c *Conn) {
 			someError = true
 			continue
 		}
-errf("%s",filename)
 		filename, err = writeOut(filename, header, body)
 		if err != nil {
 			errf("failed to write %s (%v) for line %d; skipping", filename, err, lineno)
