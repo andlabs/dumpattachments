@@ -1,0 +1,10 @@
+Quick program to bulk dump attachments from an IMAP account.
+
+Assumes TLS right now.
+
+Run with -help for help.
+
+Command line arguments must not be base64-encoded; list file fields before tthe | that represent strings must be.
+
+Pietro Gagliardi (andlabs)
+6 april 2016
