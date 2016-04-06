@@ -14,6 +14,7 @@ import (
 // - options: -f to limit to a folder, -s for SSL
 // - command to dump text or html part of message to verify this is what you want
 // - replace panics in all files
+// - avoid downloading the same message multiple times
 
 var (
 	imapdebug = flag.Bool("imapdebug", false, "debug IMAP session")
