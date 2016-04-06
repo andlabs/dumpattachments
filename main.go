@@ -13,7 +13,7 @@ import (
 // TODOs:
 // - options: -f to limit to a folder, -s for SSL
 // - command to dump text or html part of message to verify this is what you want
-// - replace panics in this file
+// - replace panics in all files
 
 var (
 	imapdebug = flag.Bool("imapdebug", false, "debug IMAP session")
@@ -32,6 +32,8 @@ func usage() {
 	errf("commands:")
 	errf("  list")
 	errf("	print a list of attachments to stdout")
+	errf("  dump")
+	errf("	dump all the attachments listed on stdin to the current directory")
 	errf("  rawdump mailbox uidverify uid")
 	errf("	hex dump the raw header and body of the given email")
 	errf("  read mailbox uidverify uid")
@@ -101,6 +103,8 @@ func main() {
 				panic(err)
 			}
 		}, server, user, pass)
+	case "dump":
+		do(doDump, server, user, pass)
 	case "rawdump":
 		doRaw(func(header []byte, body []byte) {
 			fmt.Printf("header:\n")
